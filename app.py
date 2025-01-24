@@ -213,4 +213,23 @@ demo = gr.Interface(
     inputs=[
         gr.Textbox(
             lines=3,
-            label="Paste
+            label="Paste Suspicious SMS Text (English/Spanish)",
+            placeholder="Type or paste the message here..."
+        ),
+        gr.Image(
+            type="pil",
+            label="Or Upload a Screenshot (Optional)"
+        )
+    ],
+    outputs="json",
+    title="SMiShing & Scam Detector with Safe Browsing",
+    description="""
+This tool classifies messages as SMiShing, Other Scam, or Legitimate using a zero-shot model
+(joeddav/xlm-roberta-large-xnli). It automatically detects if the text is Spanish or English.
+It uses SHAP for explainability and checks URLs against Google's Safe Browsing API for enhanced analysis.
+    """,
+    flagging_mode="auto"
+)
+
+if __name__ == "__main__":
+    demo.launch()
