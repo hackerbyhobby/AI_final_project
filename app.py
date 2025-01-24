@@ -26,7 +26,7 @@ model_name = "joeddav/xlm-roberta-large-xnli"
 classifier = pipeline("zero-shot-classification", model=model_name)
 CANDIDATE_LABELS = ["SMiShing", "Other Scam", "Legitimate"]
 
-# 3. SHAP Patch for Text Masking
+# 3. SHAP Patch for Text Masking.
 if hasattr(shap.maskers._text.Text, "invariants"):
     original_invariants = shap.maskers._text.Text.invariants
 
