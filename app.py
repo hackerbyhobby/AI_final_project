@@ -4,99 +4,104 @@ from PIL import Image
 from transformers import pipeline
 import re
 
-# 1. Load scam keywords from file
-#    Each line in 'scam_keywords.txt' is treated as a separate keyword.
-with open("scam_keywords.txt", "r", encoding="utf-8") as f:
-    SCAM_KEYWORDS = [line.strip().lower() for line in f if line.strip()]
+# 1. Load keywords from separate files
+with open("smishing_keywords.txt", "r", encoding="utf-8") as f:
+    SMISHING_KEYWORDS = [line.strip().lower() for line in f if line.strip()]
 
-# 2. Zero-Shot Classification Pipeline
+with open("other_scam_keywords.txt", "r", encoding="utf-8") as f:
+    OTHER_SCAM_KEYWORDS = [line.strip().lower() for line in f if line.strip()]
+
+# 2. Load the zero-shot classification pipeline
 model_name = "joeddav/xlm-roberta-large-xnli"
 classifier = pipeline("zero-shot-classification", model=model_name)
 
+# We will classify among these three labels
 CANDIDATE_LABELS = ["SMiShing", "Other Scam", "Legitimate"]
 
-def keyword_and_url_boost(probabilities, text):
+def boost_probabilities(probabilities: dict, text: str) -> dict:
     """
-    Adjust final probabilities if certain scam-related keywords or URLs appear.
-      - probabilities: dict, label -> original probability
-      - text: the combined text from user input + OCR
-
-    Returns an updated dict of probabilities that sum to 1.
+    Increases SMiShing probability if 'smishing_keywords' or URLs are found.
+    Increases Other Scam probability if 'other_scam_keywords' are found.
+    Reduces Legitimate by the total amount of these boosts.
+    Then clamps negative probabilities to 0 and re-normalizes.
     """
     lower_text = text.lower()
 
-    # 1. Check scam keywords
-    keyword_count = sum(1 for kw in SCAM_KEYWORDS if kw in lower_text)
-    keyword_boost = 0.50 * keyword_count  # 5% per found keyword
-    keyword_boost = min(keyword_boost, 0.30)  # cap at +30%
+    # Count smishing keywords
+    smishing_keyword_count = sum(1 for kw in SMISHING_KEYWORDS if kw in lower_text)
+    # Count other scam keywords
+    other_scam_keyword_count = sum(1 for kw in OTHER_SCAM_KEYWORDS if kw in lower_text)
 
-    # 2. Check if there's any URL (simple regex for http/https)
+    # Base boosts
+    smishing_boost = 0.10 * smishing_keyword_count
+    other_scam_boost = 0.10 * other_scam_keyword_count
+
+    # Check URLs => +0.20 only to Smishing
     found_urls = re.findall(r"(https?://[^\s]+)", lower_text)
-    url_boost = 0.0
     if found_urls:
-        # For demonstration: a flat +30% if a URL is found
-        url_boost = 0.30
+        smishing_boost += 0.20
 
-    # 3. Combine total boost
-    total_boost = keyword_boost + url_boost
-    total_boost = min(total_boost, 0.80)  # cap at +80%
+    # Extract original probabilities
+    p_smishing = probabilities["SMiShing"]
+    p_other_scam = probabilities["Other Scam"]
+    p_legit = probabilities["Legitimate"]
 
-    if total_boost <= 0:
-        return probabilities  # no change if no keywords/URLs found
+    # Apply boosts
+    p_smishing += smishing_boost
+    p_other_scam += other_scam_boost
 
-    smishing_prob = probabilities["SMiShing"]
-    other_scam_prob = probabilities["Other Scam"]
-    legit_prob = probabilities["Legitimate"]
+    # Subtract total boost from Legitimate
+    total_boost = smishing_boost + other_scam_boost
+    p_legit -= total_boost
 
-    # 4. Distribute the total boost equally to "SMiShing" and "Other Scam"
-    half_boost = total_boost / 2.0
-    smishing_boosted = smishing_prob + url_boost
-    other_scam_boosted = other_scam_prob + keyword_boost
-    legit_boosted = legit_prob
+    # Clamp negative probabilities
+    if p_smishing < 0:
+        p_smishing = 0.0
+    if p_other_scam < 0:
+        p_other_scam = 0.0
+    if p_legit < 0:
+        p_legit = 0.0
 
-    # 5. Re-normalize so they sum to 1
-    total = smishing_boosted + other_scam_boosted + legit_boosted
+    # Re-normalize so sum=1
+    total = p_smishing + p_other_scam + p_legit
     if total > 0:
-        smishing_final = smishing_boosted / total
-        other_scam_final = other_scam_boosted / total
-        legit_final = legit_boosted / total
+        p_smishing /= total
+        p_other_scam /= total
+        p_legit /= total
     else:
-        smishing_final = 0.0
-        other_scam_final = 0.0
-        legit_final = 1.0
+        # fallback if everything is zero
+        p_smishing, p_other_scam, p_legit = 0.0, 0.0, 1.0
 
     return {
-        "SMiShing": smishing_final,
-        "Other Scam": other_scam_final,
-        "Legitimate": legit_final
+        "SMiShing": p_smishing,
+        "Other Scam": p_other_scam,
+        "Legitimate": p_legit
     }
 
 def smishing_detector(text, image):
     """
-    1. Extract text from the image (OCR) if provided.
-    2. Combine with user-entered text.
-    3. Zero-shot classification -> base probabilities.
-    4. Keyword + URL boost -> adjusted probabilities.
-    5. Return final label, confidence, etc.
+    1. OCR if image provided.
+    2. Zero-shot classify => base probabilities.
+    3. Boost probabilities based on keywords + URL logic.
+    4. Return final classification + confidence.
     """
-    # Step 1: OCR if there's an image
-    combined_text = text if text else ""
+    combined_text = text or ""
     if image is not None:
         ocr_text = pytesseract.image_to_string(image, lang="spa+eng")
         combined_text += " " + ocr_text
-
-    # Clean text
     combined_text = combined_text.strip()
+
     if not combined_text:
         return {
             "text_used_for_classification": "(none)",
             "label": "No text provided",
             "confidence": 0.0,
-            "keywords_found": [],
+            "smishing_keywords_found": [],
+            "other_scam_keywords_found": [],
             "urls_found": []
         }
 
-    # Step 2: Zero-shot classification
+    # Perform zero-shot classification
     result = classifier(
         sequences=combined_text,
         candidate_labels=CANDIDATE_LABELS,
@@ -104,25 +109,29 @@ def smishing_detector(text, image):
     )
     original_probs = dict(zip(result["labels"], result["scores"]))
 
-    # Step 3: Keyword + URL boost
-    boosted_probs = keyword_and_url_boost(original_probs, combined_text)
-
-    # Step 4: Pick final label after boost
+    # Apply boosts
+    boosted_probs = boost_probabilities(original_probs, combined_text)
     final_label = max(boosted_probs, key=boosted_probs.get)
     final_confidence = round(boosted_probs[final_label], 3)
 
-    # Step 5: Identify which keywords and URLs were found
+    # For display: which keywords + URLs
     lower_text = combined_text.lower()
-    found_keywords = [kw for kw in SCAM_KEYWORDS if kw in lower_text]
+    smishing_found = [kw for kw in SMISHING_KEYWORDS if kw in lower_text]
+    other_scam_found = [kw for kw in OTHER_SCAM_KEYWORDS if kw in lower_text]
     found_urls = re.findall(r"(https?://[^\s]+)", lower_text)
 
     return {
         "text_used_for_classification": combined_text,
-        "original_probabilities": {k: round(v, 3) for k, v in original_probs.items()},
-        "boosted_probabilities": {k: round(v, 3) for k, v in boosted_probs.items()},
+        "original_probabilities": {
+            k: round(v, 3) for k, v in original_probs.items()
+        },
+        "boosted_probabilities": {
+            k: round(v, 3) for k, v in boosted_probs.items()
+        },
         "label": final_label,
         "confidence": final_confidence,
-        "keywords_found": found_keywords,
+        "smishing_keywords_found": smishing_found,
+        "other_scam_keywords_found": other_scam_found,
         "urls_found": found_urls,
     }
 
@@ -140,11 +149,14 @@ demo = gr.Interface(
         )
     ],
     outputs="json",
-    title="SMiShing & Scam Detector (Keyword + URL Boost)",
+    title="SMiShing & Scam Detector (Separate Keywords + URL → SMiShing)",
     description="""
 This tool classifies messages as SMiShing, Other Scam, or Legitimate using a zero-shot model
-(joeddav/xlm-roberta-large-xnli). It also checks for certain "scam keywords" (loaded from a file)
-and any URLs, boosting the probability of a scam label if found.
+(joeddav/xlm-roberta-large-xnli). 
+- 'smishing_keywords.txt' boosts SMiShing specifically.
+- 'other_scam_keywords.txt' boosts Other Scam specifically.
+- Any URL found further boosts ONLY Smishing.
+- The total boost is subtracted from Legitimate.
 Supports English & Spanish text (OCR included).
 """,
     allow_flagging="never"

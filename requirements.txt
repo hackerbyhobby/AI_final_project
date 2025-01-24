@@ -4,4 +4,5 @@ torch==2.0.1
 sentencepiece==0.1.99
 pytesseract==0.3.10
 Pillow==9.5.0
+tesseract-ocr
 numpy==1.23.5
