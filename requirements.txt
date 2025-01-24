@@ -7,3 +7,6 @@ Pillow==9.5.0
 numpy==1.23.5
 langdetect
 googletrans==4.0.0-rc1
+langdetect==1.0.9  # Language detection library
+deep-translator==1.10.1  # Replaced googletrans for robust translation
+httpcore==0.15.0  # Ensure compatibility with transformers (optional fix for dependency conflicts)
