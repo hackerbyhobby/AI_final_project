@@ -8,6 +8,7 @@ from deep_translator import GoogleTranslator
 import shap
 import requests
 import json
+import os
 
 # Translator instance
 translator = GoogleTranslator(source="auto", target="es")
@@ -27,15 +28,12 @@ CANDIDATE_LABELS = ["SMiShing", "Other Scam", "Legitimate"]
 # SHAP explainer setup
 explainer = shap.Explainer(classifier)
 
-# Prompt the user for their Google Safe Browsing API key
-def get_api_key():
-    """Prompt the user for their API key."""
-    api_key = input("Please enter your Google Safe Browsing API key: ").strip()
-    if not api_key:
-        raise ValueError("API key is required to use the application.")
-    return api_key
+# Retrieve the Google Safe Browsing API key from the environment
+SAFE_BROWSING_API_KEY = os.getenv("SAFE_BROWSING_API_KEY")
 
-SAFE_BROWSING_API_KEY = get_api_key()
+if not SAFE_BROWSING_API_KEY:
+    raise ValueError("Google Safe Browsing API key not found. Please set it as an environment variable in your Hugging Face Space.")
+
 SAFE_BROWSING_URL = "https://safebrowsing.googleapis.com/v4/threatMatches:find"
 
 def check_url_with_google_safebrowsing(url):
