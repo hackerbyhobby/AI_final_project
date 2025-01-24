@@ -12,6 +12,16 @@ import os
 import numpy as np
 from shap.maskers import Text
 
+# Patch SHAP to replace np.bool with np.bool_ dynamically
+if hasattr(shap.maskers._text.Text, "invariants"):
+    original_invariants = shap.maskers._text.Text.invariants
+
+    def patched_invariants(self, *args):
+        # Use np.bool_ instead of the deprecated np.bool
+        return np.zeros(len(self._tokenized_s), dtype=np.bool_)
+
+    shap.maskers._text.Text.invariants = patched_invariants
+
 # Translator instance
 translator = GoogleTranslator(source="auto", target="es")
 
@@ -228,7 +238,7 @@ This tool classifies messages as SMiShing, Other Scam, or Legitimate using a zer
 (joeddav/xlm-roberta-large-xnli). It automatically detects if the text is Spanish or English.
 It uses SHAP for explainability and checks URLs against Google's Safe Browsing API for enhanced analysis.
     """,
-    flagging_mode="auto"
+    flagging_mode="never"
 )
 
 if __name__ == "__main__":
