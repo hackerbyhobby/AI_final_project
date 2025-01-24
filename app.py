@@ -26,6 +26,11 @@ model_name = "joeddav/xlm-roberta-large-xnli"
 classifier = pipeline("zero-shot-classification", model=model_name)
 CANDIDATE_LABELS = ["SMiShing", "Other Scam", "Legitimate"]
 
+# Patch shap to use np.bool_ instead of np.bool
+shap.maskers._text.Text.mask_invariants = (
+    lambda self, *args: np.zeros(len(self._tokenized_s), dtype=np.bool_)
+)
+
 # SHAP explainer setup
 explainer = shap.Explainer(classifier)
 
@@ -224,7 +229,7 @@ This tool classifies messages as SMiShing, Other Scam, or Legitimate using a zer
 (joeddav/xlm-roberta-large-xnli). It automatically detects if the text is Spanish or English.
 It uses SHAP for explainability and checks URLs against Google's Safe Browsing API for enhanced analysis.
     """,
-    flagging_mode="auto"
+    flagging_mode="never"
 )
 
 if __name__ == "__main__":
