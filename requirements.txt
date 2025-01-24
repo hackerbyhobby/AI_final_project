@@ -1,0 +1,6 @@
+gradio==3.34.0
+transformers==4.28.1
+torch==2.0.1
+sentencepiece==0.1.99
+pytesseract==0.3.10
+Pillow==9.5.0
