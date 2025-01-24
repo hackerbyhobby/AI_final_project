@@ -23,9 +23,7 @@ CANDIDATE_LABELS = ["SMiShing", "Other Scam", "Legitimate"]
 
 def get_keywords_by_language(text: str):
     """
-    1. Detect language using `langdetect`.
-    2. If Spanish ('es'), translate each English-based keyword to Spanish using `deep-translator`.
-    3. If English (or other languages), use the original English lists.
+    Detect language using `langdetect` and translate keywords if needed.
     """
     snippet = text[:200]  # Use a snippet for detection
     try:
@@ -34,7 +32,6 @@ def get_keywords_by_language(text: str):
         detected_lang = "en"  # Default to English if detection fails
 
     if detected_lang == "es":
-        # Translate all SMiShing and Other Scam keywords to Spanish
         smishing_in_spanish = [
             translator.translate(kw).lower() for kw in SMISHING_KEYWORDS
         ]
@@ -43,7 +40,6 @@ def get_keywords_by_language(text: str):
         ]
         return smishing_in_spanish, other_scam_in_spanish, "es"
     else:
-        # Default to English keywords
         return SMISHING_KEYWORDS, OTHER_SCAM_KEYWORDS, "en"
 
 def boost_probabilities(probabilities: dict, text: str):
@@ -63,20 +59,17 @@ def boost_probabilities(probabilities: dict, text: str):
     if found_urls:
         smishing_boost += 0.35
 
-    p_smishing = probabilities["SMiShing"]
-    p_other_scam = probabilities["Other Scam"]
-    p_legit = probabilities["Legitimate"]
+    p_smishing = probabilities.get("SMiShing", 0.0)
+    p_other_scam = probabilities.get("Other Scam", 0.0)
+    p_legit = probabilities.get("Legitimate", 1.0)
 
     p_smishing += smishing_boost
     p_other_scam += other_scam_boost
     p_legit -= (smishing_boost + other_scam_boost)
 
-    if p_smishing < 0:
-        p_smishing = 0.0
-    if p_other_scam < 0:
-        p_other_scam = 0.0
-    if p_legit < 0:
-        p_legit = 0.0
+    p_smishing = max(p_smishing, 0.0)
+    p_other_scam = max(p_other_scam, 0.0)
+    p_legit = max(p_legit, 0.0)
 
     total = p_smishing + p_other_scam + p_legit
     if total > 0:
@@ -94,6 +87,9 @@ def boost_probabilities(probabilities: dict, text: str):
     }
 
 def smishing_detector(text, image):
+    """
+    Main detection function combining text and OCR.
+    """
     combined_text = text or ""
     if image is not None:
         ocr_text = pytesseract.image_to_string(image, lang="spa+eng")
@@ -114,11 +110,13 @@ def smishing_detector(text, image):
         candidate_labels=CANDIDATE_LABELS,
         hypothesis_template="This message is {}."
     )
-    original_probs = dict(zip(result["labels"], result["scores"]))
+    original_probs = {k: float(v) for k, v in zip(result["labels"], result["scores"])}
     boosted = boost_probabilities(original_probs, combined_text)
+
+    boosted = {k: float(v) for k, v in boosted.items() if isinstance(v, (int, float))}
+    detected_lang = boosted.pop("detected_lang", "en")
     final_label = max(boosted, key=boosted.get)
     final_confidence = round(boosted[final_label], 3)
-    detected_lang = boosted.pop("detected_lang", "en")
 
     lower_text = combined_text.lower()
     smishing_keys, scam_keys, _ = get_keywords_by_language(combined_text)
