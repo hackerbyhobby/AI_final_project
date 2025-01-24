@@ -6,3 +6,4 @@ pytesseract==0.3.10
 langdetect==1.0.9
 deep-translator==1.10.1
 httpx==0.13.3
+sentencepiece==0.1.99
