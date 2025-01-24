@@ -33,13 +33,13 @@ def boost_probabilities(probabilities: dict, text: str) -> dict:
     other_scam_keyword_count = sum(1 for kw in OTHER_SCAM_KEYWORDS if kw in lower_text)
 
     # Base boosts
-    smishing_boost = 0.10 * smishing_keyword_count
-    other_scam_boost = 0.10 * other_scam_keyword_count
+    smishing_boost = 0.30 * smishing_keyword_count
+    other_scam_boost = 0.30 * other_scam_keyword_count
 
     # Check URLs => +0.20 only to Smishing
     found_urls = re.findall(r"(https?://[^\s]+)", lower_text)
     if found_urls:
-        smishing_boost += 0.20
+        smishing_boost += 0.35
 
     # Extract original probabilities
     p_smishing = probabilities["SMiShing"]
