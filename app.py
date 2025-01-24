@@ -26,10 +26,14 @@ model_name = "joeddav/xlm-roberta-large-xnli"
 classifier = pipeline("zero-shot-classification", model=model_name)
 CANDIDATE_LABELS = ["SMiShing", "Other Scam", "Legitimate"]
 
-# Patch shap to use np.bool_ instead of np.bool
-shap.maskers._text.Text.mask_invariants = (
-    lambda self, *args: np.zeros(len(self._tokenized_s), dtype=np.bool_)
-)
+# 3. SHAP Patch for Text Masking
+if hasattr(shap.maskers._text.Text, "invariants"):
+    original_invariants = shap.maskers._text.Text.invariants
+
+    def patched_invariants(self, *args):
+        return np.zeros(len(self._tokenized_s), dtype=np.bool_)  # Use np.bool_ instead
+
+    shap.maskers._text.Text.invariants = patched_invariants
 
 # SHAP explainer setup
 explainer = shap.Explainer(classifier)
