@@ -10,6 +10,7 @@ import requests
 import json
 import os
 import numpy as np
+from shap.maskers import Text
 
 # Translator instance
 translator = GoogleTranslator(source="auto", target="es")
@@ -26,17 +27,8 @@ model_name = "joeddav/xlm-roberta-large-xnli"
 classifier = pipeline("zero-shot-classification", model=model_name)
 CANDIDATE_LABELS = ["SMiShing", "Other Scam", "Legitimate"]
 
-# 3. SHAP Patch for Text Masking.
-if hasattr(shap.maskers._text.Text, "invariants"):
-    original_invariants = shap.maskers._text.Text.invariants
-
-    def patched_invariants(self, *args):
-        return np.zeros(len(self._tokenized_s), dtype=np.bool_)  # Use np.bool_ instead
-
-    shap.maskers._text.Text.invariants = patched_invariants
-
-# SHAP explainer setup
-explainer = shap.Explainer(classifier)
+# 3. SHAP Explainer Setup
+explainer = shap.Explainer(classifier, masker=Text(tokenizer=classifier.tokenizer))
 
 # Retrieve the Google Safe Browsing API key from the environment
 SAFE_BROWSING_API_KEY = os.getenv("SAFE_BROWSING_API_KEY")
@@ -147,6 +139,9 @@ def explain_classification(text):
     """
     Generate SHAP explanations for the classification.
     """
+    if not text.strip():
+        raise ValueError("Cannot generate SHAP explanations for empty text.")
+
     shap_values = explainer([text])
     shap.force_plot(
         explainer.expected_value[0], shap_values[0].values[0], shap_values[0].data
@@ -218,23 +213,4 @@ demo = gr.Interface(
     inputs=[
         gr.Textbox(
             lines=3,
-            label="Paste Suspicious SMS Text (English/Spanish)",
-            placeholder="Type or paste the message here..."
-        ),
-        gr.Image(
-            type="pil",
-            label="Or Upload a Screenshot (Optional)"
-        )
-    ],
-    outputs="json",
-    title="SMiShing & Scam Detector with Safe Browsing",
-    description="""
-This tool classifies messages as SMiShing, Other Scam, or Legitimate using a zero-shot model
-(joeddav/xlm-roberta-large-xnli). It automatically detects if the text is Spanish or English.
-It uses SHAP for explainability and checks URLs against Google's Safe Browsing API for enhanced analysis.
-    """,
-    flagging_mode="never"
-)
-
-if __name__ == "__main__":
-    demo.launch()
+            label="Paste
