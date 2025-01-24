@@ -34,12 +34,12 @@ def keyword_and_url_boost(probabilities, text):
     found_urls = re.findall(r"(https?://[^\s]+)", lower_text)
     url_boost = 0.0
     if found_urls:
-        # For demonstration: a flat +10% if a URL is found
-        url_boost = 0.20
+        # For demonstration: a flat +30% if a URL is found
+        url_boost = 0.30
 
     # 3. Combine total boost
     total_boost = keyword_boost + url_boost
-    total_boost = min(total_boost, 0.60)  # cap at +40%
+    total_boost = min(total_boost, 0.80)  # cap at +80%
 
     if total_boost <= 0:
         return probabilities  # no change if no keywords/URLs found
@@ -50,8 +50,8 @@ def keyword_and_url_boost(probabilities, text):
 
     # 4. Distribute the total boost equally to "SMiShing" and "Other Scam"
     half_boost = total_boost / 2.0
-    smishing_boosted = smishing_prob + half_boost
-    other_scam_boosted = other_scam_prob + half_boost
+    smishing_boosted = smishing_prob + url_boost
+    other_scam_boosted = other_scam_prob + keyword_boost
     legit_boosted = legit_prob
 
     # 5. Re-normalize so they sum to 1
