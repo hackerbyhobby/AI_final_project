@@ -5,6 +5,9 @@ from transformers import pipeline
 import re
 from langdetect import detect
 from deep_translator import GoogleTranslator
+import shap
+import requests
+import json
 
 # Translator instance
 translator = GoogleTranslator(source="auto", target="es")
@@ -20,6 +23,52 @@ with open("other_scam_keywords.txt", "r", encoding="utf-8") as f:
 model_name = "joeddav/xlm-roberta-large-xnli"
 classifier = pipeline("zero-shot-classification", model=model_name)
 CANDIDATE_LABELS = ["SMiShing", "Other Scam", "Legitimate"]
+
+# SHAP explainer setup
+explainer = shap.Explainer(classifier)
+
+# Prompt the user for their Google Safe Browsing API key
+def get_api_key():
+    """Prompt the user for their API key."""
+    api_key = input("Please enter your Google Safe Browsing API key: ").strip()
+    if not api_key:
+        raise ValueError("API key is required to use the application.")
+    return api_key
+
+SAFE_BROWSING_API_KEY = get_api_key()
+SAFE_BROWSING_URL = "https://safebrowsing.googleapis.com/v4/threatMatches:find"
+
+def check_url_with_google_safebrowsing(url):
+    """
+    Check a URL against Google's Safe Browsing API.
+    """
+    payload = {
+        "client": {
+            "clientId": "your-client-id",
+            "clientVersion": "1.0"
+        },
+        "threatInfo": {
+            "threatTypes": ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE", "POTENTIALLY_HARMFUL_APPLICATION"],
+            "platformTypes": ["ANY_PLATFORM"],
+            "threatEntryTypes": ["URL"],
+            "threatEntries": [
+                {"url": url}
+            ]
+        }
+    }
+    try:
+        response = requests.post(
+            SAFE_BROWSING_URL,
+            params={"key": SAFE_BROWSING_API_KEY},
+            json=payload
+        )
+        response_data = response.json()
+        if "matches" in response_data:
+            return True  # URL is flagged as malicious
+        return False  # URL is safe
+    except Exception as e:
+        print(f"Error checking URL with Safe Browsing API: {e}")
+        return False
 
 def get_keywords_by_language(text: str):
     """
@@ -83,8 +132,17 @@ def boost_probabilities(probabilities: dict, text: str):
         "SMiShing": p_smishing,
         "Other Scam": p_other_scam,
         "Legitimate": p_legit,
-        "detected_lang": detected_lang
+        "detected_lang": detected_lang,
     }
+
+def explain_classification(text):
+    """
+    Generate SHAP explanations for the classification.
+    """
+    shap_values = explainer([text])
+    shap.force_plot(
+        explainer.expected_value[0], shap_values[0].values[0], shap_values[0].data
+    )
 
 def smishing_detector(text, image):
     """
@@ -102,7 +160,8 @@ def smishing_detector(text, image):
             "label": "No text provided",
             "confidence": 0.0,
             "keywords_found": [],
-            "urls_found": []
+            "urls_found": [],
+            "threat_analysis": "No URLs to analyze",
         }
 
     result = classifier(
@@ -125,6 +184,14 @@ def smishing_detector(text, image):
     found_smishing = [kw for kw in smishing_keys if kw in lower_text]
     found_other_scam = [kw for kw in scam_keys if kw in lower_text]
 
+    # Analyze URLs using Google's Safe Browsing API
+    threat_analysis = {
+        url: check_url_with_google_safebrowsing(url) for url in found_urls
+    }
+
+    # SHAP Explanation (optional for user insights)
+    explain_classification(combined_text)
+
     return {
         "detected_language": detected_lang,
         "text_used_for_classification": combined_text,
@@ -135,6 +202,7 @@ def smishing_detector(text, image):
         "smishing_keywords_found": found_smishing,
         "other_scam_keywords_found": found_other_scam,
         "urls_found": found_urls,
+        "threat_analysis": threat_analysis,
     }
 
 demo = gr.Interface(
@@ -151,13 +219,12 @@ demo = gr.Interface(
         )
     ],
     outputs="json",
-    title="SMiShing & Scam Detector (Language Detection + Keyword Translation)",
+    title="SMiShing & Scam Detector with Safe Browsing",
     description="""
 This tool classifies messages as SMiShing, Other Scam, or Legitimate using a zero-shot model
 (joeddav/xlm-roberta-large-xnli). It automatically detects if the text is Spanish or English.
-If Spanish, it translates the English-based keyword lists to Spanish before boosting the scores.
-Any URL found further boosts SMiShing specifically.
-""",
+It uses SHAP for explainability and checks URLs against Google's Safe Browsing API for enhanced analysis.
+    """,
     allow_flagging="never"
 )
 
