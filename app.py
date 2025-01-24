@@ -224,7 +224,7 @@ This tool classifies messages as SMiShing, Other Scam, or Legitimate using a zer
 (joeddav/xlm-roberta-large-xnli). It automatically detects if the text is Spanish or English.
 It uses SHAP for explainability and checks URLs against Google's Safe Browsing API for enhanced analysis.
     """,
-    flagging_mode="true"
+    flagging_mode="auto"
 )
 
 if __name__ == "__main__":
