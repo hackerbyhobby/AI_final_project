@@ -9,6 +9,7 @@ import shap
 import requests
 import json
 import os
+import numpy as np
 
 # Translator instance
 translator = GoogleTranslator(source="auto", target="es")
@@ -223,7 +224,7 @@ This tool classifies messages as SMiShing, Other Scam, or Legitimate using a zer
 (joeddav/xlm-roberta-large-xnli). It automatically detects if the text is Spanish or English.
 It uses SHAP for explainability and checks URLs against Google's Safe Browsing API for enhanced analysis.
     """,
-    allow_flagging="never"
+    flagging_mode="true"
 )
 
 if __name__ == "__main__":
