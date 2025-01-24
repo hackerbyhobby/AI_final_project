@@ -27,7 +27,7 @@ def keyword_and_url_boost(probabilities, text):
 
     # 1. Check scam keywords
     keyword_count = sum(1 for kw in SCAM_KEYWORDS if kw in lower_text)
-    keyword_boost = 0.05 * keyword_count  # 5% per found keyword
+    keyword_boost = 0.50 * keyword_count  # 5% per found keyword
     keyword_boost = min(keyword_boost, 0.30)  # cap at +30%
 
     # 2. Check if there's any URL (simple regex for http/https)
@@ -35,11 +35,11 @@ def keyword_and_url_boost(probabilities, text):
     url_boost = 0.0
     if found_urls:
         # For demonstration: a flat +10% if a URL is found
-        url_boost = 0.10
+        url_boost = 0.20
 
     # 3. Combine total boost
     total_boost = keyword_boost + url_boost
-    total_boost = min(total_boost, 0.40)  # cap at +40%
+    total_boost = min(total_boost, 0.60)  # cap at +40%
 
     if total_boost <= 0:
         return probabilities  # no change if no keywords/URLs found
