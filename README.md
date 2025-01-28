@@ -56,6 +56,23 @@ This project is an AI-powered tool designed to detect SMiShing (SMS phishing) an
 ## Screenshots
 ![Interface Screenshot](https://via.placeholder.com/600x400.png?text=Add+Your+Screenshot+Here)
 
+### 🔧 Customization
+
+- **Keywords**
+  - Edit or add lines in `smishing_keywords.txt` or `other_scam_keywords.txt` to reflect new terms.
+  - The app auto-detects these keywords (and translates to Spanish if necessary).
+
+- **Boost Amount**
+  - Currently set to specific multipliers (e.g., `0.30`, `0.35`).
+  - Adjust these values in the `boost_probabilities(...)` function.
+
+- **Language Detection**
+  - By default, the app uses `langdetect`.
+  - You can swap it for a more advanced language detection library if needed.
+
+- **OCR**
+  - If you prefer a different OCR engine (e.g., EasyOCR or Gemini-based OCR), replace the Tesseract calls with your desired approach.
+
 ## Contributing
 Feel free to submit issues or feature requests. Contributions are welcome!
 
