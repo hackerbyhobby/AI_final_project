@@ -40,13 +40,26 @@ This project is an AI-powered tool designed to detect SMiShing (SMS phishing) an
    export SAFE_BROWSING_API_KEY=<your-api-key>
    ```
 
-## Usage
+### 🏃 Usage Guide
 1. Run the application:
    ```bash
    python app.py
    ```
 2. Open the provided Gradio interface in your browser.
-3. Paste a suspicious SMS message or upload a screenshot to analyze it.
+
+1. **Select Input Type**
+   - **Text**: Paste or type a suspicious SMS (English or Spanish).
+   - **Screenshot**: Upload an image or screenshot containing the suspicious text.
+
+2. **Classify**
+   - The system performs OCR (if a screenshot is uploaded) and automatically detects the language.
+   - Probability is boosted if certain keywords (or a URL) appear.
+   - The final label (`SMiShing`, `Other Scam`, or `Legitimate`) and confidence are displayed, along with any detected keywords/URLs.
+
+3. **Interpret Results**
+   - High **SMiShing**: The message strongly resembles phishing attempts.
+   - High **Other Scam**: Indicates a scam that is not strictly phishing.
+   - **Legitimate**: Suggests no malicious indicators were found.
 
 ## File Structure
 - **app.py**: Main application script.
