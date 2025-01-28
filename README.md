@@ -86,10 +86,11 @@ This project is an AI-powered tool designed to detect SMiShing (SMS phishing) an
 - **OCR**
   - If you prefer a different OCR engine (e.g., EasyOCR or Gemini-based OCR), replace the Tesseract calls with your desired approach.
  
-💡 Disclaimers & Warnings
-	•	False Positives/Negatives: No ML-based system is perfect. Always verify suspicious messages.
-	•	Privacy: We recommend not storing user data or images unless absolutely required.
-	•	External Dependencies: The performance and accuracy rely on Tesseract’s OCR, Hugging Face Transformers, and external translation libraries.
+### 💡 Disclaimers & Warnings
+
+- **False Positives/Negatives**: No ML-based system is perfect. Always verify suspicious messages.
+- **Privacy**: We recommend not storing user data or images unless absolutely required.
+- **External Dependencies**: The performance and accuracy rely on Tesseract’s OCR, Hugging Face Transformers, and external translation libraries.
 
 ## Contributing
 Feel free to submit issues or feature requests. Contributions are welcome!
