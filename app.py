@@ -25,11 +25,11 @@ def get_keywords_by_language(text: str):
     """
     Detect language using `langdetect` and translate keywords if needed.
     """
-    snippet = text[:200]  # Use a snippet for detection
+    snippet = text[:200]
     try:
         detected_lang = detect(snippet)
     except Exception:
-        detected_lang = "en"  # Default to English if detection fails
+        detected_lang = "en"
 
     if detected_lang == "es":
         smishing_in_spanish = [
@@ -67,10 +67,12 @@ def boost_probabilities(probabilities: dict, text: str):
     p_other_scam += other_scam_boost
     p_legit -= (smishing_boost + other_scam_boost)
 
+    # Clamp
     p_smishing = max(p_smishing, 0.0)
     p_other_scam = max(p_other_scam, 0.0)
     p_legit = max(p_legit, 0.0)
 
+    # Re-normalize
     total = p_smishing + p_other_scam + p_legit
     if total > 0:
         p_smishing /= total
@@ -86,15 +88,16 @@ def boost_probabilities(probabilities: dict, text: str):
         "detected_lang": detected_lang
     }
 
-def smishing_detector(text, image):
+def smishing_detector(input_type, text, image):
     """
-    Main detection function combining text and OCR.
+    Main detection function combining text (if 'Text') and OCR (if 'Screenshot').
     """
-    combined_text = text or ""
-    if image is not None:
-        ocr_text = pytesseract.image_to_string(image, lang="spa+eng")
-        combined_text += " " + ocr_text
-    combined_text = combined_text.strip()
+    if input_type == "Text":
+        combined_text = text.strip() if text else ""
+    else:
+        combined_text = ""
+        if image is not None:
+            combined_text = pytesseract.image_to_string(image, lang="spa+eng").strip()
 
     if not combined_text:
         return {
@@ -111,10 +114,19 @@ def smishing_detector(text, image):
         hypothesis_template="This message is {}."
     )
     original_probs = {k: float(v) for k, v in zip(result["labels"], result["scores"])}
+
     boosted = boost_probabilities(original_probs, combined_text)
 
-    boosted = {k: float(v) for k, v in boosted.items() if isinstance(v, (int, float))}
-    detected_lang = boosted.pop("detected_lang", "en")
+    # Patched snippet begins
+    # 1. Extract language first, preserving it
+    detected_lang = boosted.get("detected_lang", "en")
+    # 2. Remove it so only numeric keys remain
+    boosted.pop("detected_lang", None)
+    # 3. Convert numeric values to float
+    for k, v in boosted.items():
+        boosted[k] = float(v)
+    # Patched snippet ends
+
     final_label = max(boosted, key=boosted.get)
     final_confidence = round(boosted[final_label], 3)
 
@@ -137,29 +149,62 @@ def smishing_detector(text, image):
         "urls_found": found_urls,
     }
 
-demo = gr.Interface(
-    fn=smishing_detector,
-    inputs=[
-        gr.Textbox(
-            lines=3,
-            label="Paste Suspicious SMS Text (English/Spanish)",
-            placeholder="Type or paste the message here..."
-        ),
-        gr.Image(
-            type="pil",
-            label="Or Upload a Screenshot (Optional)"
+#
+# Gradio interface with dynamic visibility
+#
+def toggle_inputs(choice):
+    """
+    Return updates for (text_input, image_input) based on the radio selection.
+    """
+    if choice == "Text":
+        # Show text input, hide image
+        return gr.update(visible=True), gr.update(visible=False)
+    else:
+        # choice == "Screenshot"
+        # Hide text input, show image
+        return gr.update(visible=False), gr.update(visible=True)
+
+with gr.Blocks() as demo:
+    gr.Markdown("## SMiShing & Scam Detector (Choose Text or Screenshot)")
+    
+    with gr.Row():
+        input_type = gr.Radio(
+            choices=["Text", "Screenshot"], 
+            value="Text", 
+            label="Choose Input Type"
         )
-    ],
-    outputs="json",
-    title="SMiShing & Scam Detector (Language Detection + Keyword Translation)",
-    description="""
-This tool classifies messages as SMiShing, Other Scam, or Legitimate using a zero-shot model
-(joeddav/xlm-roberta-large-xnli). It automatically detects if the text is Spanish or English.
-If Spanish, it translates the English-based keyword lists to Spanish before boosting the scores.
-Any URL found further boosts SMiShing specifically.
-""",
-    allow_flagging="never"
-)
+
+    text_input = gr.Textbox(
+        lines=3,
+        label="Paste Suspicious SMS Text",
+        placeholder="Type or paste the message here...",
+        visible=True  # default
+    )
+
+    image_input = gr.Image(
+        type="pil",
+        label="Upload Screenshot",
+        visible=False  # hidden by default
+    )
+
+    # Whenever input_type changes, toggle which input is visible
+    input_type.change(
+        fn=toggle_inputs,
+        inputs=input_type,
+        outputs=[text_input, image_input],
+        queue=False
+    )
+
+    # Button to run classification
+    analyze_btn = gr.Button("Classify")
+    output_json = gr.JSON(label="Result")
+
+    # On button click, call the smishing_detector
+    analyze_btn.click(
+        fn=smishing_detector,
+        inputs=[input_type, text_input, image_input],
+        outputs=output_json
+    )
 
 if __name__ == "__main__":
     demo.launch()
