@@ -40,6 +40,23 @@ This project is an AI-powered tool designed to detect SMiShing (SMS phishing) an
    export SAFE_BROWSING_API_KEY=<your-api-key>
    ```
 
+   ### 🌐 Deployment on Hugging Face Spaces
+
+1. **Create a New Space**
+   - At [huggingface.co/spaces](https://huggingface.co/spaces), select **Gradio** as the SDK.
+
+2. **Add Files**
+   - Drag and drop `app.py`, `requirements.txt`, `apt.txt` (if Tesseract is needed), plus the keyword files.
+   - If pushing via Git, ensure your directory structure is replicated.
+
+3. **Build**
+   - Spaces will automatically install dependencies from `requirements.txt`.
+   - It installs system packages from `apt.txt`.
+   - On completion, you get a public URL.
+
+4. **Try it Out**
+   - The resulting UI allows you to pick **Text** or **Screenshot**, paste or upload, then classify.
+
 ### 🏃 Usage Guide
 1. Run the application:
    ```bash
