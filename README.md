@@ -110,7 +110,81 @@ This project is an AI-powered tool designed to detect SMiShing (SMS phishing) an
 - **External Dependencies**: The performance and accuracy rely on Tesseract’s OCR, Hugging Face Transformers, and external translation libraries.
 
 ## Contributing
-Feel free to submit issues or feature requests. Contributions are welcome!
+Should we revive our final project? Let us know! We might be open to it!
+
+### 🏗️ System Architecture & Workflow
+
+#### **1️⃣ Architecture Overview**
+The **SMiShing & Scam Detector** leverages **machine learning (ML) and large language models (LLMs)** to classify messages as **SMiShing, Other Scam, or Legitimate**. The system integrates **OCR, NLP, keyword analysis, URL threat detection, and AI-powered reasoning**.
+
+#### **2️⃣ Workflow Breakdown**
+1. **User Input**
+   - The user inputs **text** or uploads a **screenshot**.
+   - If a screenshot is provided, **Tesseract OCR** extracts text.
+
+2. **Initial Classification (Zero-Shot)**
+   - Uses **Hugging Face's `xlm-roberta-large-xnli`** model for **zero-shot classification**.
+   - Assigns probabilities to labels: **SMiShing, Other Scam, Legitimate**.
+
+3. **Keyword & URL Analysis**
+   - Detects **language** and translates **keywords** if needed.
+   - Scans for **SMiShing** and **scam-related** keywords.
+   - Identifies URLs (with or without `http/https`) and checks them against **Google Safe Browsing**.
+
+4. **Probability Boosting**
+   - Adjusts classification probabilities based on:
+     - **Keyword matches** (increases risk score).
+     - **Presence of URLs** (higher risk for phishing).
+     - **Malicious URLs** (detected via Safe Browsing API → Boosts `SMiShing` to 100%).
+
+5. **LLM-Based Classification & Explanation**
+   - **LLM Call 1**: Asks **GPT-3.5-turbo** to **act as a cybersecurity expert** and classify the text.
+   - Integrates LLM’s classification into final scoring.
+   - **LLM Call 2**: Generates a **final explanation** in **English or Spanish**, summarizing:
+     - Local model classification
+     - LLM classification
+     - Detected risks (keywords, URLs, etc.)
+
+6. **Final Output**
+   - Displays **final classification**, **confidence score**, and **explanation**.
+   - Highlights **found SMiShing/scam keywords & URLs**.
+   - Provides an **interactive Gradio UI** for easy use.
+
+#### **3️⃣ Technologies Used**
+| Component             | Technology |
+|----------------------|------------|
+| **Frontend**         | Gradio UI  |
+| **OCR**             | Tesseract  |
+| **Text Classification** | Hugging Face Transformers (`xlm-roberta-large-xnli`) |
+| **Translation**      | Deep Translator  |
+| **Language Detection** | LangDetect  |
+| **URL Security**     | Google Safe Browsing API  |
+| **AI Reasoning**     | OpenAI GPT (LLM) |
+
+#### **4️⃣ Diagram Representation**
+```
+User Input (Text/Screenshot)
+    ↓
+OCR (if image)
+    ↓
+Language Detection & Translation
+    ↓
+Zero-Shot Classification (Hugging Face)
+    ↓
+Keyword & URL Analysis
+    ↓
+Google Safe Browsing Check (if URLs found)
+    ↓
+Probability Boosting
+    ↓
+LLM Classification (GPT-3.5 as Cybersecurity Expert)
+    ↓
+Final Explanation by LLM (Multilingual)
+    ↓
+Display Results (Gradio UI)
+```
+
+This structured **AI-powered cybersecurity tool** provides a **comprehensive, explainable, and user-friendly** approach to SMiShing and scam detection. 🚀
 
 ## License
 This project is licensed under the [MIT License](LICENSE).
