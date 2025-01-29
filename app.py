@@ -282,7 +282,7 @@ def smishing_detector(input_type, text, image):
     lower_text = combined_text.lower()
     smishing_keys, scam_keys, _ = get_keywords_by_language(combined_text)
 
-    found_urls = re.findall(r"(https?://[^\s]+)", lower_text)
+    found_urls = re.findall(r"(https?://[^\s]+|\b(?:[a-zA-Z0-9.-]+\.(?:com|net|org|edu|gov|mil|io|ai|co|info|biz|us|uk|de|fr|es|ru|jp|cn|in|au|ca|br|mx|it|nl|se|no|fi|ch|pl|kr|vn|id|tw|sg|hk))\b)", lower_text)
     found_smishing = [kw for kw in smishing_keys if kw in lower_text]
     found_other_scam = [kw for kw in scam_keys if kw in lower_text]
 
