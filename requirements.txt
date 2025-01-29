@@ -9,3 +9,4 @@ httpx==0.13.3
 sentencepiece==0.1.99
 numpy==1.25.0
 shap==0.41.0
+openai
