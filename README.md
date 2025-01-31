@@ -102,6 +102,52 @@ This project is an AI-powered tool designed to detect SMiShing (SMS phishing) an
 
 - **OCR**
   - If you prefer a different OCR engine (e.g., EasyOCR or Gemini-based OCR), replace the Tesseract calls with your desired approach.
+
+## 🛠️ Zero-Shot Classification in Use
+
+The **zero-shot classification** is implemented using the **Hugging Face Transformers pipeline**. It processes the **user-provided or OCR-extracted text** as follows:
+
+```python
+pipeline("zero-shot-classification", model="joeddav/xlm-roberta-large-xnli")
+```
+- **Input**: `sequences=combined_text`
+- **Candidate Labels**: `["SMiShing", "Other Scam", "Legitimate"]`
+
+---
+
+## ✅ Effectiveness Check
+
+### **1️⃣ Typical Zero-Shot Usage**
+- The code **calls** the zero-shot classifier:
+  ```python
+  pipeline("zero-shot-classification", model="joeddav/xlm-roberta-large-xnli")
+  ```
+- It **uses candidate labels**:
+  ```python
+  ["SMiShing", "Other Scam", "Legitimate"]
+  ```
+- It applies a **hypothesis template**:
+  ```python
+  "This message is {}."
+  ```
+- This follows the **standard approach** for **zero-shot classification**, where the model predicts the most relevant label.
+
+### **2️⃣ Overridden by Manual Boosting**
+- **After** the zero-shot classification:
+  - The function `boost_probabilities(...)` **manually adjusts** scores **based on keywords and URLs**.
+  - The function `incorporate_llm_label(...)` **modifies scores further** using the **LLM's classification**.
+- These **manual interventions** **significantly shift** probability distributions, sometimes **overriding the model's original predictions**.
+
+---
+
+## 📊 **Is It Used Effectively?**
+The zero-shot classifier **does work**, but its **impact may be reduced** due to large **manual probability boosts**:
+
+- A **URL detection** can **add +0.35** to `SMiShing`.
+- The **LLM classification** can **add +0.2** to a label.
+- These manual boosts may **overshadow** the original **zero-shot confidence scores**.
+
+💡 **Conclusion:** While the zero-shot classification step is valid, its influence is **heavily adjusted post-processing**. This approach blends **ML-based classification with expert rule-based adjustments**, but it also means the original **model's confidence levels might not be the final determinant**. 🚀
  
 ### 💡 Disclaimers & Warnings
 
