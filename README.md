@@ -19,6 +19,7 @@ This project is an AI-powered tool designed to detect SMiShing (SMS phishing) an
 - **Google Safe Browsing API**: To detect malicious URLs.
 - **Gradio**: For an interactive user interface.
 - **LangDetect & Deep Translator**: For language detection and translation.
+- **OpenAI API: For explainability of the classification to the end user, in natural language.
 
 ## Installation
 1. Clone this repository:
