@@ -5,11 +5,13 @@ from transformers import pipeline
 import re
 from langdetect import detect
 from deep_translator import GoogleTranslator
-import openai
+from openai import OpenAI
 import os
 
-# Set your OpenAI API key
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# OpenAI client (>=1.0 API). Construct only if a key is present so the app
+# still runs without it — the LLM calls are guarded and degrade gracefully.
+_openai_api_key = os.getenv("OPENAI_API_KEY")
+openai_client = OpenAI(api_key=_openai_api_key) if _openai_api_key else None
 
 # Translator instance
 translator = GoogleTranslator(source="auto", target="es")
@@ -108,8 +110,11 @@ def query_llm_for_classification(raw_message: str) -> dict:
     )
     user_prompt = f"Message: {raw_message}\nClassify it as SMiShing, Other Scam, or Legitimate."
 
+    if openai_client is None:
+        return {"label": "Unknown", "reason": "OPENAI_API_KEY not set."}
+
     try:
-        response = openai.ChatCompletion.create(
+        response = openai_client.chat.completions.create(
             model="gpt-4-turbo",
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -117,7 +122,7 @@ def query_llm_for_classification(raw_message: str) -> dict:
             ],
             temperature=0.2
         )
-        raw_reply = response["choices"][0]["message"]["content"].strip()
+        raw_reply = response.choices[0].message.content.strip()
 
         import json
         llm_result = json.loads(raw_reply)
@@ -207,8 +212,11 @@ Suspicious Other Scam Keywords => {found_other_scam}
 URLs => {found_urls}
 """
 
+    if openai_client is None:
+        return "OPENAI_API_KEY not set; skipping LLM explanation."
+
     try:
-        response = openai.ChatCompletion.create(
+        response = openai_client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -216,7 +224,7 @@ URLs => {found_urls}
             ],
             temperature=0.2
         )
-        final_explanation = response["choices"][0]["message"]["content"].strip()
+        final_explanation = response.choices[0].message.content.strip()
         return final_explanation
     except Exception as e:
         return f"Could not generate final explanation due to error: {e}"
@@ -375,6 +383,6 @@ with gr.Blocks() as demo:
     )
 
 if __name__ == "__main__":
-    if not openai.api_key:
+    if openai_client is None:
         print("WARNING: OPENAI_API_KEY not set. LLM calls will fail or be skipped.")
     demo.launch()
